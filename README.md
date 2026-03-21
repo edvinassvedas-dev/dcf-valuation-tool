@@ -1,47 +1,24 @@
-# REIT Valuation Tool
+# DCF Valuation Tool
 ![App Interface](images/screenshot.png)
 
-A Python desktop application for multi-model REIT valuation, combining three methodologies simultaneously with scenario analysis, sensitivity tables, and Google Sheets database management.
+A Python desktop application for discounted cash flow analysis of publicly traded equities. Runs worst/base/best scenario modeling with a sensitivity table, margin of safety display, and Google Sheets database management.
+
 ---
 
 ## Overview
 
-The tool was built to support structured investment analysis of Real Estate Investment Trusts. It runs three independent valuation models side by side — DDM, AFFO DCF, and NAV — and produces a weighted cross-model summary that can be adjusted based on the REIT type. All analyses are saved to a Google Sheets database.
-
-
-
----
-
-## Models
-
-### 1. Two-Stage Dividend Discount Model (DDM)
-- Stage 1: user-defined high-growth period (default 5 years)
-- Stage 2: perpetual terminal growth rate
-- Three scenarios: Worst / Base / Best
-- Displays dividend coverage ratio (AFFO per share / DPS)
-
-### 2. AFFO-Based DCF
-- Discounted cash flow using Adjusted Funds from Operations
-- Accounts for debt and cash in the equity bridge
-- 10-year projection horizon (configurable)
-- Three scenarios with independent WACC and terminal growth assumptions
-
-### 3. Net Asset Value (NAV)
-- NAV per share from Gross Asset Value, debt, and other liabilities
-- Implied cap rate display (requires NOI input)
-- **GAV sensitivity table**: NAV at ±10%, ±20% GAV
-- **Cap rate sensitivity table**: NAV at cap rates from 3.5% to 6.5%
-- Premium / discount to market price
+Built as a structured front-end for entering and persisting DCF analyses to Google Sheets. The analytical layer was added on top — providing scenario modeling, sensitivity analysis, and upside/MoS calculations — making it useful both as a data entry tool and a lightweight investment research aid.
 
 ---
 
 ## Features
 
-- **Weighted cross-model summary** — configurable weights (DDM / AFFO DCF / NAV) with a weighted average price across all three scenarios
-- **Weighting guide** — a few quick notes explaining when to favour each model
-- **MoS and upside display** — margin of safety and % upside vs market price, colour-coded green/red
-- **Google Sheets database** — save, load, and delete analyses; all inputs and weights are persisted
-- **Reset** — clears all fields to defaults in one click
+- **Three-scenario DCF** — Worst / Base / Best with independent growth, WACC, and terminal growth rate inputs
+- **Sensitivity table** — 5×5 grid varying WACC ±2% and growth rate ±2% around a user-selected anchor scenario; rows where any cell exceeds the market price are highlighted green
+- **Results display** — intrinsic price, margin of safety (%), and upside (%) per scenario; colour-coded green/red
+- **Notes field** — free-text field saved alongside the analysis
+- **Google Sheets database** — save, load, and delete analyses; header is written automatically on first save
+- **Scenario anchor selector** — sensitivity table can be re-anchored to Worst, Base, or Best without recalculating
 
 ---
 
@@ -52,24 +29,45 @@ Python 3.9+
 FreeSimpleGUI
 gspread
 google-auth
-pandas (optional, not required at runtime)
 ```
-Developed and tested on Linux. FreeSimpleGUI rendering may vary slightly when running on Windows and macOS.
+
+Developed and tested on Linux. FreeSimpleGUI rendering may vary slightly by platform.
+
+---
 
 ## Google Sheets Setup
 
-The tool writes to a Google Sheet named `DCF DB`, sheet `REIT DB` (change to whatever works for you).
-
-1. Create a Google Cloud project and enable the Google Sheets and Drive APIs
-2. Create a service account and download the JSON credentials file
-3. Share the `DCF DB` spreadsheet with the service account email
-4. Update `CREDENTIALS_PATH` in the script to point to your credentials file:
+The tool writes to a Google Sheet named `DCF DB`, sheet `DB`. Both names are configurable at the top of the script:
 
 ```python
-CREDENTIALS_PATH = '/path/to/your/credentials.json'
+CREDENTIALS_PATH = 'credentials.json'   # path to your service account JSON
+SPREADSHEET_NAME = 'DCF DB'             # spreadsheet file name
+SHEET_NAME       = 'DB'                 # worksheet tab name
 ```
 
+1. Create a Google Cloud project and enable the Sheets and Drive APIs
+2. Create a service account and download the JSON credentials file
+3. Share the spreadsheet with the service account email address
+4. Update `CREDENTIALS_PATH` to point to your credentials file
+
 The sheet header is written automatically on first save.
+
+---
+
+## Input Parameters
+
+| Field | Description |
+|---|---|
+| Analysis Name | User-defined label for the analysis |
+| Last Free Cash Flow (M) | Most recent annual or TTM FCF in millions |
+| Total Debt (M) | Total debt on the balance sheet |
+| Cash Equivalents (M) | Cash and short-term equivalents |
+| Shares Outstanding (M) | Diluted share count in millions |
+| Years to Project | DCF projection horizon (typically 5–10) |
+| Current Market Price | Optional — enables MoS, upside, and sensitivity table highlighting |
+| Growth Rate (%) | FCF growth rate per scenario |
+| WACC (%) | Weighted average cost of capital per scenario |
+| Terminal Growth (%) | Perpetual growth rate after the projection period |
 
 ---
 
@@ -78,49 +76,36 @@ The sheet header is written automatically on first save.
 | Field | Description |
 |---|---|
 | `analysis_name` | User-defined label |
-| `shares` | Shares / units outstanding (millions) |
+| `last_fcf` | Last free cash flow (millions) |
+| `debt` | Total debt (millions) |
+| `cash` | Cash equivalents (millions) |
+| `shares` | Shares outstanding (millions) |
+| `years` | Projection years |
 | `market_price` | Current market price |
-| `dps` | Annual dividend per share |
-| `ddm_stage1_years` | DDM Stage 1 projection years |
-| `ddm_[worst/base/best]_growth` | Stage 1 growth rate per scenario |
-| `ddm_[worst/base/best]_terminal` | Stage 2 terminal growth rate per scenario |
-| `ddm_[worst/base/best]_rate` | Discount rate per scenario |
-| `affo` | AFFO (millions, TTM) |
-| `affo_debt` | Total debt (millions) |
-| `affo_cash` | Cash & equivalents (millions) |
-| `affo_years` | DCF projection years |
-| `affo_[worst/base/best]_growth` | AFFO growth rate per scenario |
-| `affo_[worst/base/best]_wacc` | WACC per scenario |
-| `affo_[worst/base/best]_terminal` | Terminal growth rate per scenario |
-| `gav` | Gross Asset Value (millions) |
-| `nav_debt` | Total debt for NAV (millions) |
-| `nav_other` | Other liabilities (millions) |
-| `noi` | Net Operating Income (millions) |
-| `w_ddm` / `w_affo` / `w_nav` | Model weights (%) |
+| `pessimistic_growth` / `_wacc` / `_terminal` | Worst case scenario inputs |
+| `middle_growth` / `_wacc` / `_terminal` | Base case scenario inputs |
+| `optimistic_growth` / `_wacc` / `_terminal` | Best case scenario inputs |
 | `notes` | Free-text notes |
-| `analysis_date` | Auto-recorded date of save (YYYY-MM-DD) |
 
 ---
 
-## Weighting Guide
+## How the DCF Works
 
-| REIT Type | Recommended Weighting |
-|---|---|
-| Property-heavy (core, net lease) | NAV 50–60%, AFFO DCF 30%, DDM 10–20% |
-| Dividend-focused (mREITs, high-yield) | DDM 40–50%, AFFO DCF 30%, NAV 20–30% |
-| Balanced (residential, diversified) | Equal weights (33/34/33) |
+1. Projects FCF forward for the specified number of years using the scenario growth rate
+2. Discounts each projected FCF back to present value using WACC
+3. Calculates terminal value using the Gordon Growth Model: `FCF_n × (1 + g) / (WACC − g)`
+4. Discounts terminal value to present value
+5. Enterprise Value = sum of discounted FCFs + discounted terminal value
+6. Intrinsic Value = Enterprise Value − Total Debt + Cash
+7. Intrinsic Price = Intrinsic Value / Shares Outstanding
 
-NAV should carry more weight when the portfolio consists of readily appraised assets (apartments, industrial, retail) and when the REIT is in an operational transition where current cash flows understate intrinsic value. DDM deserves more weight when dividend sustainability and growth are the primary investment thesis.
+**Note:** WACC must be greater than the terminal growth rate. The model will raise an error if this constraint is violated.
 
 ---
 
-## Notes
+## Sensitivity Table
 
-- The AFFO DCF can return negative equity values for highly leveraged REITs with low near-term AFFO — this is mathematically correct and represents the model's assessment that equity has no residual value at the given WACC. It is not a bug.
-- Margin of Safety (MoS) displays `—` when intrinsic price is negative or zero.
-- Cap rate sensitivity requires the NOI field to be populated.
-- Weights do not need to sum to 100 — the weighted average normalises automatically.
-- In DDM, to run a single-stage model set Stage 1 Growth = Stage 2 Terminal Growth for whichever scenario you want to treat as single-stage. (You can  mix: e.g., use two-stage for best case and single-stage logic for worst case within the same calculation.)
+The sensitivity table shows intrinsic price across 25 combinations of WACC and growth rate, centred on the anchor scenario. It is useful for identifying the break-even assumptions — the boundary where the intrinsic price crosses the market price. Rows containing at least one cell above the market price are highlighted green when a market price is entered.
 
 ---
 
