@@ -111,4 +111,4 @@ The sensitivity table shows intrinsic price across 25 combinations of WACC and g
 
 ## License
 
-Personal project. Not intended for commercial use or redistribution.
+MIT
